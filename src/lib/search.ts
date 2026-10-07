@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import { db, listings, sources } from "@/db";
+import { cachedQuery } from "@/lib/cache";
 import { fold } from "@/parser/normalize";
 
 export const FUELS = ["petrol", "diesel", "lpg", "cng", "hybrid", "plugin_hybrid", "electric"] as const;
@@ -129,7 +130,7 @@ function orderFor(sort: SearchFilters["sort"]) {
 
 export const PAGE_SIZE = 24;
 
-export async function searchListings(f: SearchFilters) {
+async function searchListingsUncached(f: SearchFilters) {
   const where = whereFor(f);
   const page = Math.min(f.page ?? 1, 200);
   const [rows, [{ count }]] = await Promise.all([
@@ -147,7 +148,7 @@ export async function searchListings(f: SearchFilters) {
 }
 
 /** Facet counts for the filter sidebar (makes with active listings). */
-export async function makeFacets() {
+async function makeFacetsUncached() {
   return db
     .select({ make: listings.make, count: sql<number>`count(*)::int` })
     .from(listings)
@@ -156,7 +157,7 @@ export async function makeFacets() {
     .orderBy(desc(sql`count(*)`));
 }
 
-export async function modelFacets(make: string) {
+async function modelFacetsUncached(make: string) {
   return db
     .select({ model: listings.model, count: sql<number>`count(*)::int` })
     .from(listings)
@@ -164,5 +165,9 @@ export async function modelFacets(make: string) {
     .groupBy(listings.model)
     .orderBy(desc(sql`count(*)`));
 }
+
+export const searchListings = cachedQuery(searchListingsUncached, "search", 60);
+export const makeFacets = cachedQuery(makeFacetsUncached, "make-facets", 300);
+export const modelFacets = cachedQuery(modelFacetsUncached, "model-facets", 300);
 
 export { asc };

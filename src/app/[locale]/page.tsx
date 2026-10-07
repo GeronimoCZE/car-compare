@@ -6,6 +6,7 @@ import { ConditionBadge } from "@/components/Badges";
 import { HeroSearch } from "@/components/HeroSearch";
 import { ListingCard } from "@/components/ListingCard";
 import { getDict, isLocale, type Locale } from "@/i18n/dictionaries";
+import { cachedQuery } from "@/lib/cache";
 import { num } from "@/lib/format";
 import { makePath } from "@/lib/paths";
 import { makeFacets } from "@/lib/search";
@@ -13,15 +14,9 @@ import { SITE_NAME, SITE_URL } from "@/lib/site";
 import { eurRate, siteStats } from "@/lib/stats";
 import { makeName } from "@/parser/catalog";
 
-export default async function Home({ params }: PageProps<"/[locale]">) {
-  const { locale: l } = await params;
-  if (!isLocale(l)) notFound();
-  const locale = l as Locale;
-  const t = getDict(locale);
-  const [rate, stats, makes, deals, newest] = await Promise.all([
-    eurRate(),
-    siteStats(),
-    makeFacets(),
+// Landing sections are the same for every visitor; refresh every two minutes
+const homeDeals = cachedQuery(
+  async (country: "CZ" | "SK") =>
     db
       .select({ listing: listings, sourceName: sources.name })
       .from(listings)
@@ -34,11 +29,16 @@ export default async function Home({ params }: PageProps<"/[locale]">) {
           isNotNull(listings.dealScore),
           lte(listings.dealScore, 0.92),
           sql`${listings.marketSampleSize} >= 5`,
-          eq(listings.country, locale === "sk" ? "SK" : "CZ"),
+          eq(listings.country, country),
         ),
       )
       .orderBy(listings.dealScore)
       .limit(6),
+  "home-deals",
+  120,
+);
+const homeNewest = cachedQuery(
+  async () =>
     db
       .select({ listing: listings, sourceName: sources.name })
       .from(listings)
@@ -46,6 +46,21 @@ export default async function Home({ params }: PageProps<"/[locale]">) {
       .where(and(eq(listings.status, "active"), eq(listings.kind, "car"), inArray(listings.condition, ["ok", "unknown"])))
       .orderBy(desc(listings.firstSeenAt), desc(listings.id))
       .limit(6),
+  "home-newest",
+  120,
+);
+
+export default async function Home({ params }: PageProps<"/[locale]">) {
+  const { locale: l } = await params;
+  if (!isLocale(l)) notFound();
+  const locale = l as Locale;
+  const t = getDict(locale);
+  const [rate, stats, makes, deals, newest] = await Promise.all([
+    eurRate(),
+    siteStats(),
+    makeFacets(),
+    homeDeals(locale === "sk" ? "SK" : "CZ"),
+    homeNewest(),
   ]);
   const makeOptions = makes.filter((m) => m.make).map((m) => ({ slug: m.make!, name: makeName(m.make)!, count: m.count }));
 
@@ -59,7 +74,7 @@ export default async function Home({ params }: PageProps<"/[locale]">) {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <section className="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 text-white">
         <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-10 h-80 w-80 rounded-full bg-sky-300/20 blur-3xl" />

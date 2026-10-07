@@ -6,7 +6,8 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { db, sessions, users, type User } from "@/db";
 
-const COOKIE = "sid";
+// __Host- prefix: browser only accepts it over HTTPS, for path "/", without a Domain, so subdomains can't plant or read it
+const COOKIE = process.env.NODE_ENV === "production" ? "__Host-sid" : "sid";
 const SESSION_DAYS = 30;
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -43,6 +44,7 @@ export async function destroyAllSessions(userId: number) {
   await db.delete(sessions).where(eq(sessions.userId, userId));
 }
 
+
 /** Current user for this request (cached per render). */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
@@ -70,15 +72,4 @@ export function newToken() {
 }
 export { sha256 };
 
-// Simple in-memory limiter for login/registration attempts (per process)
-const attempts = new Map<string, { n: number; reset: number }>();
-export function rateLimited(key: string, max = 8, windowMs = 10 * 60_000) {
-  const now = Date.now();
-  const a = attempts.get(key);
-  if (!a || a.reset < now) {
-    attempts.set(key, { n: 1, reset: now + windowMs });
-    return false;
-  }
-  a.n++;
-  return a.n > max;
-}
+export { rateLimited } from "@/lib/security";

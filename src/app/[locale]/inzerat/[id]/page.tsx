@@ -11,12 +11,58 @@ import { CompareButton } from "@/components/CompareButton";
 import { ListingCard } from "@/components/ListingCard";
 import { ReportForm } from "@/components/ReportForm";
 import { fmt, getDict, isLocale, type Locale } from "@/i18n/dictionaries";
+import { cachedQuery } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { date, money, num, originalMoney } from "@/lib/format";
 import { listingPath, makePath, modelPath } from "@/lib/paths";
 import { SITE_URL } from "@/lib/site";
 import { eurRate, yearStats } from "@/lib/stats";
 import { makeName, modelName } from "@/parser/catalog";
+
+// Listing data is public and identical for every visitor; per-user bits (bookmark state) are read live
+const listingById = cachedQuery(
+  async (id: number) =>
+    db.select({ l: listings, sourceName: sources.name }).from(listings).innerJoin(sources, eq(sources.id, listings.sourceId)).where(eq(listings.id, id)).limit(1),
+  "listing",
+  60,
+);
+const priceHistoryFor = cachedQuery(
+  async (listingId: number) => db.select().from(priceHistory).where(eq(priceHistory.listingId, listingId)).orderBy(asc(priceHistory.observedAt)),
+  "price-history",
+  300,
+);
+const sameCarFor = cachedQuery(
+  async (clusterKey: string, id: number, sourceId: number) =>
+    db
+      .select({ l: listings, sourceName: sources.name })
+      .from(listings)
+      .innerJoin(sources, eq(sources.id, listings.sourceId))
+      .where(and(eq(listings.clusterKey, clusterKey), ne(listings.id, id), ne(listings.sourceId, sourceId), eq(listings.status, "active")))
+      .limit(6),
+  "same-car",
+  300,
+);
+const similarFor = cachedQuery(
+  async (make: string, model: string, id: number, year: number | null) =>
+    db
+      .select({ listing: listings, sourceName: sources.name })
+      .from(listings)
+      .innerJoin(sources, eq(sources.id, listings.sourceId))
+      .where(
+        and(
+          eq(listings.make, make),
+          eq(listings.model, model),
+          ne(listings.id, id),
+          eq(listings.status, "active"),
+          eq(listings.kind, "car"),
+          year ? sql`abs(${listings.year} - ${year}) <= 1` : undefined,
+        ),
+      )
+      .orderBy(sql`${listings.dealScore} asc nulls last`)
+      .limit(6),
+  "similar",
+  300,
+);
 
 type Props = PageProps<"/[locale]/inzerat/[id]">;
 
@@ -25,12 +71,7 @@ async function load(props: Props) {
   if (!isLocale(l)) notFound();
   const numericId = Number.parseInt(id, 10);
   if (!Number.isInteger(numericId)) notFound();
-  const row = await db
-    .select({ l: listings, sourceName: sources.name })
-    .from(listings)
-    .innerJoin(sources, eq(sources.id, listings.sourceId))
-    .where(eq(listings.id, numericId))
-    .limit(1);
+  const row = await listingById(numericId);
   if (!row[0] || row[0].l.status === "hidden") notFound();
   return { locale: l as Locale, id, ...row[0] };
 }
@@ -61,33 +102,9 @@ export default async function ListingPage(props: Props) {
   const fm = (v: number) => money(v, locale, rate);
 
   const [history, sameCar, similar, stats, bm] = await Promise.all([
-    db.select().from(priceHistory).where(eq(priceHistory.listingId, l.id)).orderBy(asc(priceHistory.observedAt)),
-    l.clusterKey
-      ? db
-          .select({ l: listings, sourceName: sources.name })
-          .from(listings)
-          .innerJoin(sources, eq(sources.id, listings.sourceId))
-          .where(and(eq(listings.clusterKey, l.clusterKey), ne(listings.id, l.id), ne(listings.sourceId, l.sourceId), eq(listings.status, "active")))
-          .limit(6)
-      : Promise.resolve([]),
-    l.make && l.model
-      ? db
-          .select({ listing: listings, sourceName: sources.name })
-          .from(listings)
-          .innerJoin(sources, eq(sources.id, listings.sourceId))
-          .where(
-            and(
-              eq(listings.make, l.make),
-              eq(listings.model, l.model),
-              ne(listings.id, l.id),
-              eq(listings.status, "active"),
-              eq(listings.kind, "car"),
-              l.year ? sql`abs(${listings.year} - ${l.year}) <= 1` : undefined,
-            ),
-          )
-          .orderBy(sql`${listings.dealScore} asc nulls last`)
-          .limit(6)
-      : Promise.resolve([]),
+    priceHistoryFor(l.id),
+    l.clusterKey ? sameCarFor(l.clusterKey, l.id, l.sourceId) : Promise.resolve([]),
+    l.make && l.model ? similarFor(l.make, l.model, l.id, l.year) : Promise.resolve([]),
     l.make && l.model ? yearStats(l.make, l.model) : Promise.resolve([]),
     user ? db.query.bookmarks.findFirst({ where: and(eq(bookmarks.userId, user.id), eq(bookmarks.listingId, l.id)) }) : Promise.resolve(null),
   ]);

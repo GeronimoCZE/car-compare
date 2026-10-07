@@ -186,7 +186,7 @@ const cs = {
     errors: {
       invalid: "Nesprávný e-mail nebo heslo.",
       exists: "Účet s tímto e-mailem už existuje.",
-      weak: "Heslo musí mít alespoň 8 znaků.",
+      weak: "Heslo musí mít 8 až 128 znaků.",
       mismatch: "Hesla se neshodují.",
       terms: "Pro registraci je potřeba souhlas s podmínkami.",
       email: "Zadejte platný e-mail.",
@@ -409,7 +409,7 @@ const sk: Dict = {
     errors: {
       invalid: "Nesprávny e-mail alebo heslo.",
       exists: "Účet s týmto e-mailom už existuje.",
-      weak: "Heslo musí mať aspoň 8 znakov.",
+      weak: "Heslo musí mať 8 až 128 znakov.",
       mismatch: "Heslá sa nezhodujú.",
       terms: "Na registráciu je potrebný súhlas s podmienkami.",
       email: "Zadajte platný e-mail.",

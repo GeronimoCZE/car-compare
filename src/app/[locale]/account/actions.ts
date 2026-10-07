@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, users } from "@/db";
 import { getDict, isLocale } from "@/i18n/dictionaries";
-import { destroyAllSessions, destroySession, getCurrentUser, hashPassword, verifyPassword } from "@/lib/auth";
+import { createSession, destroyAllSessions, destroySession, getCurrentUser, hashPassword, verifyPassword } from "@/lib/auth";
+import { passwordOk, rateLimited } from "@/lib/security";
 
 export type AccountState = { error?: string; ok?: string } | undefined;
 
@@ -25,11 +26,15 @@ export async function changePassword(_: AccountState, fd: FormData): Promise<Acc
   const user = await getCurrentUser();
   if (!user) redirect("/cs/login");
   const t = getDict(isLocale(user.locale) ? user.locale : "cs");
-  if (!(await verifyPassword(String(fd.get("current") ?? ""), user.passwordHash))) return { error: t.auth.errors.invalid };
+  if (rateLimited(`pw:${user.id}`, 5)) return { error: t.auth.errors.rate };
+  if (!(await verifyPassword(String(fd.get("current") ?? "").slice(0, 1024), user.passwordHash))) return { error: t.auth.errors.invalid };
   const pw = String(fd.get("password") ?? "");
-  if (pw.length < 8) return { error: t.auth.errors.weak };
+  if (!passwordOk(pw)) return { error: t.auth.errors.weak };
   if (pw !== String(fd.get("password2") ?? "")) return { error: t.auth.errors.mismatch };
   await db.update(users).set({ passwordHash: await hashPassword(pw) }).where(eq(users.id, user.id));
+  // Sign out every other device, keep this one with a fresh session id
+  await destroyAllSessions(user.id);
+  await createSession(user.id);
   return { ok: t.account.saved };
 }
 
@@ -37,7 +42,8 @@ export async function deleteAccount(_: AccountState, fd: FormData): Promise<Acco
   const user = await getCurrentUser();
   if (!user) redirect("/cs/login");
   const t = getDict(isLocale(user.locale) ? user.locale : "cs");
-  if (!(await verifyPassword(String(fd.get("password") ?? ""), user.passwordHash))) return { error: t.auth.errors.invalid };
+  if (rateLimited(`pw:${user.id}`, 5)) return { error: t.auth.errors.rate };
+  if (!(await verifyPassword(String(fd.get("password") ?? "").slice(0, 1024), user.passwordHash))) return { error: t.auth.errors.invalid };
   await destroyAllSessions(user.id);
   await destroySession();
   // Bookmarks, saved searches and sessions cascade; reports keep the listing but lose the user link

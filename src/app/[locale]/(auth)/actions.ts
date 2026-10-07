@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db, passwordResets, users } from "@/db";
 import { isLocale, getDict } from "@/i18n/dictionaries";
-import { createSession, destroyAllSessions, destroySession, hashPassword, newToken, rateLimited, sha256, verifyPassword } from "@/lib/auth";
+import { createSession, destroyAllSessions, destroySession, hashPassword, newToken, sha256, verifyPassword } from "@/lib/auth";
+import { clientIp, passwordOk, rateLimited } from "@/lib/security";
 import { sendMail } from "@/lib/mail";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -18,7 +19,7 @@ const safeNext = (v: FormDataEntryValue | null, locale: string) => {
   const s = String(v ?? "");
   return s.startsWith(`/${locale}/`) && !s.startsWith("//") ? s : `/${locale}/account`;
 };
-const ip = async () => (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+const ip = async () => clientIp(await headers());
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export async function loginAction(_: FormState, fd: FormData): Promise<FormState> {
@@ -26,7 +27,9 @@ export async function loginAction(_: FormState, fd: FormData): Promise<FormState
   const t = getDict(locale).auth.errors;
   const email = String(fd.get("email") ?? "").trim().toLowerCase();
   const password = String(fd.get("password") ?? "");
-  if (rateLimited(`login:${await ip()}:${email}`)) return { error: t.rate };
+  // Per account (slows guessing one password) and per IP (slows spraying many accounts)
+  if (rateLimited(`login:${email}`, 10) || rateLimited(`login-ip:${await ip()}`, 30)) return { error: t.rate };
+  if (password.length > 1024) return { error: t.invalid };
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (!user) {
     await hashPassword(password); // keep timing similar so the form doesn't reveal which emails exist
@@ -46,7 +49,7 @@ export async function registerAction(_: FormState, fd: FormData): Promise<FormSt
   const password = String(fd.get("password") ?? "");
   const name = String(fd.get("name") ?? "").trim().slice(0, 80) || null;
   if (!EMAIL_RE.test(email) || email.length > 254) return { error: t.email };
-  if (password.length < 8) return { error: t.weak };
+  if (!passwordOk(password)) return { error: t.weak };
   if (password !== String(fd.get("password2") ?? "")) return { error: t.mismatch };
   if (fd.get("terms") !== "on") return { error: t.terms };
   const exists = await db.query.users.findFirst({ where: eq(users.email, email) });
@@ -67,8 +70,8 @@ export async function logoutAction(fd: FormData) {
 export async function forgotAction(_: FormState, fd: FormData): Promise<FormState> {
   const locale = loc(fd);
   const t = getDict(locale).auth;
-  if (rateLimited(`forgot:${await ip()}`, 5)) return { error: t.errors.rate };
   const email = String(fd.get("email") ?? "").trim().toLowerCase();
+  if (rateLimited(`forgot:${await ip()}`, 5) || rateLimited(`forgot:${email}`, 3, 3600_000)) return { error: t.errors.rate };
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (user) {
     const { token, id } = newToken();
@@ -83,16 +86,18 @@ export async function forgotAction(_: FormState, fd: FormData): Promise<FormStat
 export async function resetAction(_: FormState, fd: FormData): Promise<FormState> {
   const locale = loc(fd);
   const t = getDict(locale).auth;
+  if (rateLimited(`reset:${await ip()}`, 10)) return { error: t.errors.rate };
   const token = String(fd.get("token") ?? "");
   const password = String(fd.get("password") ?? "");
-  if (password.length < 8) return { error: t.errors.weak };
+  if (!passwordOk(password)) return { error: t.errors.weak };
   if (password !== String(fd.get("password2") ?? "")) return { error: t.errors.mismatch };
   const row = await db.query.passwordResets.findFirst({
     where: and(eq(passwordResets.id, sha256(token)), gt(passwordResets.expiresAt, new Date()), isNull(passwordResets.usedAt)),
   });
   if (!row) return { error: t.resetInvalid };
   await db.update(users).set({ passwordHash: await hashPassword(password) }).where(eq(users.id, row.userId));
-  await db.update(passwordResets).set({ usedAt: new Date() }).where(eq(passwordResets.id, row.id));
+  // Burn every outstanding reset link for this account, not only the one used
+  await db.update(passwordResets).set({ usedAt: new Date() }).where(and(eq(passwordResets.userId, row.userId), isNull(passwordResets.usedAt)));
   await destroyAllSessions(row.userId);
   return { ok: t.resetDone };
 }

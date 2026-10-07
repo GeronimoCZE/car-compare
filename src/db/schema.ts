@@ -220,6 +220,19 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Who did what in the admin area (kept for accountability; never shown publicly). */
+export const adminAudit = pgTable(
+  "admin_audit",
+  {
+    id: serial("id").primaryKey(),
+    adminId: integer("admin_id").references(() => users.id, { onDelete: "set null" }),
+    action: varchar("action", { length: 60 }).notNull(),
+    detail: jsonb("detail"),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("admin_audit_at_idx").on(t.at)],
+);
+
 export type Listing = typeof listings.$inferSelect;
 export type NewListing = typeof listings.$inferInsert;
 export type Source = typeof sources.$inferSelect;

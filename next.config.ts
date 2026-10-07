@@ -17,26 +17,18 @@ const nextConfig: NextConfig = {
       { key: "X-Frame-Options", value: "DENY" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
-      {
-        key: "Content-Security-Policy",
-        // Listing photos are hotlinked from source sites, hence img-src https:
-        value: [
-          "default-src 'self'",
-          "img-src 'self' https: data:",
-          "script-src 'self' 'unsafe-inline'",
-          "style-src 'self' 'unsafe-inline'",
-          "connect-src 'self'",
-          "frame-ancestors 'none'",
-          "base-uri 'self'",
-          "form-action 'self'",
-          "object-src 'none'",
-        ].join("; "),
-      },
+      { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+      { key: "X-DNS-Prefetch-Control", value: "off" },
+      // Pages get a per-request nonce CSP from src/proxy.ts; everything else (files, API, redirects) gets this locked-down one
+      { key: "Content-Security-Policy", value: "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" },
     ];
+    const pageHeaders = security.filter((h) => h.key !== "Content-Security-Policy");
     return [
-      { source: "/:path*", headers: security },
-      // API is same-origin only: no CORS headers are sent, and responses are never cached by shared caches
-      { source: "/api/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }, { key: "Cross-Origin-Resource-Policy", value: "same-origin" }] },
+      { source: "/((?!cs|sk).*)", headers: security },
+      { source: "/:locale(cs|sk)/:path*", headers: pageHeaders },
+      { source: "/:locale(cs|sk)", headers: pageHeaders },
+      // API is same-origin only (CORS is refused in src/proxy.ts); routes set their own Cache-Control
+      { source: "/api/:path*", headers: [{ key: "Cross-Origin-Resource-Policy", value: "same-origin" }] },
     ];
   },
   turbopack: {

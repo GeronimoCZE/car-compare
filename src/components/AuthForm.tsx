@@ -50,13 +50,13 @@ export function AuthForm({
           {mode !== "forgot" && (
             <div>
               <label className="label" htmlFor="password">{mode === "reset" ? t.passwordNew : t.password}</label>
-              <input id="password" name="password" type="password" required minLength={mode === "login" ? 1 : 8} autoComplete={mode === "login" ? "current-password" : "new-password"} className="input" />
+              <input id="password" name="password" type="password" required minLength={mode === "login" ? 1 : 8} maxLength={128} autoComplete={mode === "login" ? "current-password" : "new-password"} className="input" />
             </div>
           )}
           {(mode === "register" || mode === "reset") && (
             <div>
               <label className="label" htmlFor="password2">{t.passwordConfirm}</label>
-              <input id="password2" name="password2" type="password" required minLength={8} autoComplete="new-password" className="input" />
+              <input id="password2" name="password2" type="password" required minLength={8} maxLength={128} autoComplete="new-password" className="input" />
             </div>
           )}
           {mode === "register" && (

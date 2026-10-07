@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { desc, eq, isNull, sql } from "drizzle-orm";
-import { db, ingestRuns, listings, reports, sources, users } from "@/db";
+import { adminAudit, db, ingestRuns, listings, reports, sources, users } from "@/db";
 import { RunsTable } from "@/components/admin/RunsTable";
 import { runLivenessNow, runMarketNow } from "./actions";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminHome({ params }: PageProps<"/[locale]/admin">) {
   const { locale } = await params;
-  const [[counts], [userCount], [openReports], perSource, recentRuns] = await Promise.all([
+  const [[counts], [userCount], [openReports], perSource, recentRuns, audit] = await Promise.all([
     db
       .select({
         active: sql<number>`count(*) filter (where status='active')::int`,
@@ -28,6 +28,12 @@ export default async function AdminHome({ params }: PageProps<"/[locale]/admin">
       .groupBy(sources.id)
       .orderBy(sources.name),
     db.select().from(ingestRuns).orderBy(desc(ingestRuns.startedAt)).limit(8),
+    db
+      .select({ at: adminAudit.at, action: adminAudit.action, detail: adminAudit.detail, email: users.email })
+      .from(adminAudit)
+      .leftJoin(users, eq(users.id, adminAudit.adminId))
+      .orderBy(desc(adminAudit.at))
+      .limit(15),
   ]);
   const tiles = [
     ["Aktivní inzeráty", counts.active],
@@ -77,6 +83,25 @@ export default async function AdminHome({ params }: PageProps<"/[locale]/admin">
           <Link href={`/${locale}/admin/runs`} className="text-sm text-brand-600">vše →</Link>
         </div>
         <RunsTable runs={recentRuns} />
+      </section>
+      <section className="card p-5">
+        <h2 className="mb-3 font-bold">Auditní log administrace</h2>
+        {audit.length === 0 ? (
+          <p className="text-sm text-muted">Zatím žádné akce.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <tbody>
+              {audit.map((a, i) => (
+                <tr key={i} className="border-t border-line align-top">
+                  <td className="whitespace-nowrap py-2 pr-3 text-muted">{a.at.toLocaleString("cs-CZ")}</td>
+                  <td className="pr-3">{a.email ?? "–"}</td>
+                  <td className="pr-3 font-medium">{a.action}</td>
+                  <td className="break-all font-mono text-xs text-muted">{a.detail ? JSON.stringify(a.detail).slice(0, 160) : ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
     </div>
   );

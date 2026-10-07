@@ -49,6 +49,20 @@ npm test                         # parser, adapter and market tests
 
 Or `docker compose up --build` (Postgres, migrations + seed, web, worker).
 
+## Security and caching
+
+- **CORS:** the API is same-origin only. `src/proxy.ts` refuses cross-origin requests and preflights with 403 and never sends `Access-Control-Allow-*` headers. Mutating routes also check `Origin`/`Sec-Fetch-Site` (CSRF), on top of `SameSite=Lax` cookies and Next's own server-action origin check.
+- **CSP:** every page gets a per-request nonce; only scripts carrying it run (`'strict-dynamic'`), no inline handlers, no framing (`frame-ancestors 'none'`), forms post only to this site. Non-page responses get `default-src 'none'`. Plus HSTS (preload), COOP, nosniff, Referrer-Policy, Permissions-Policy.
+- **Sessions:** random 256-bit token, only its SHA-256 is stored; cookie is `__Host-sid`, httpOnly, Secure, SameSite=Lax. Password change or reset signs out all other devices; resets burn every outstanding link. Expired sessions are purged nightly.
+- **Passwords:** bcrypt cost 12, 8–128 chars; login timing doesn't reveal which emails exist.
+- **Rate limits:** login (per account and per IP), registration, password reset, reports, bookmarks, saved searches. Set `TRUST_PROXY_HOPS` to the number of proxies in front of the app so client IPs can't be spoofed via `X-Forwarded-For`. The limiter is in-memory per process; with several web instances, put it behind a shared store (Redis) or a proxy-level limit.
+- **Input:** JSON bodies capped at 8 KB and validated; admin form values checked against DB enums; JSON-LD escaped.
+- **Crawler SSRF guard:** every fetch and redirect hop is resolved and refused if it points to private, loopback or cloud-metadata addresses; bodies capped at 50 MB. Admin-entered feed URLs are checked when saved.
+- **Admin:** every admin action re-checks the session and is written to `admin_audit` (shown on the dashboard).
+- **Disclosure:** `/.well-known/security.txt`.
+
+Caching: public listing data (search results, facets, landing sections, listing detail, price history) is held in Next's data cache for 1–5 minutes and shared by all visitors; per-user data (bookmarks, account) is never cached. Admin edits invalidate the cache immediately. `/api/models` and `/api/listings` are publicly cacheable for a few minutes; every other API response is `private, no-store`. Static assets are immutable-cached by Next.
+
 ## Sources and legal status
 
 Every real source is **disabled by default**. Enable a source in Admin → Zdroje only once its terms allow it or the operator has agreed. The crawler always obeys robots.txt.
