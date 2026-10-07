@@ -354,6 +354,8 @@ const FUEL_RULES: { fuel: Fuel; re: RegExp; weight: number }[] = [
   { fuel: "petrol", re: /\b(tsi|tfsi|fsi|mpi|htp|benzin|benzinovy|benzinovej|benzinak|vtec|vti|tce|ecoboost|gdi|t-gdi|puretech|thp|skyactiv-g|mpi|16v|8v|\d{3} ?i\b|\d[.,]\di\b|turbo benzin|e-tsi)\b/, weight: 3 },
 ];
 
+const ELECTRIC_ONLY = new Set(["skoda/enyaq", "skoda/elroq", "volkswagen/id3", "volkswagen/id4", "audi/e-tron", "bmw/i3", "nissan/leaf", "renault/zoe", "kia/ev6", "mg/mg4", "porsche/taycan", "dacia/spring", "cupra/born", "byd/atto-3", "byd/seal", "byd/dolphin"]);
+
 function extractFuel(title: string, body: string): { fuel: Fuel; snippet?: string } {
   const scores = new Map<Fuel, { score: number; snippet: string }>();
   for (const [text, mult] of [
@@ -438,7 +440,7 @@ const HARD_NON_RUNNING =
   /\b(zadren\w* motor|motor zadren\w*|zadrety motor|motor nejde|bez motoru|bez prevodovky|vadn\w* motor|vadn\w* prevodov\w*|prasl\w* (hlava|blok)|prasknut\w* (hlava|blok)|nefunkcni motor|nefunkcna prevodovka|nefunkcni prevodovka|na odtah|odtahem|nutna oprava motoru|motor na opravu|poskozeny motor|rozbity motor|rozbita prevodovka|kaput motor|motor klepe|klepe motor|bez klicu)\b/;
 const NEEDS_REPAIR = /\b(nutn[aeé] oprav\w*|potrebuje oprav\w*|vyzaduje oprav\w*|na opravu|pro kutila|pre kutila|pro sikovne|opravit|nutno opravit|drobne vady|vada|zavada|kontrolka|svieti kontrolka|sviti kontrolka)\b/;
 const NO_STK = /\b(bez (stk|tk)|stk (propadl\w*|neplatn\w*|prosla)|(stk|tk) do \d{1,2}[./]?(20)?(1\d|2[0-4])\b)/;
-const STRONG_POSITIVE = /\b(bez (nehody|havarie|poskozeni|koroze|zavad|investic)|plne (funkcni|pojizdn\w*|pojazdn\w*)|vyborn\w* (stav|technick\w*)|top stav|perfektn\w* stav|100 ?% stav|bezvadn\w* stav|nehavarovan\w*|nebouran\w*|neburan\w*|nikdy (nebouran\w*|nehavarovan\w*|neburan\w*)|garazovan\w*|bez investic|ihned k jizde|ihned pojizdn\w*)\b/;
+const STRONG_POSITIVE = /\b(bez (nehody|nehod|havarie|havarii|poskozeni|koroze|korozie|zavad|zavady|investic)|plne (funkcni|funkcne|pojizdn\w*|pojazdn\w*)|vyborn\w* (stav\w*|technick\w*)|top stav\w*|perfektn\w* stav\w*|100 ?% stav\w*|bezvadn\w* stav\w*|vyborn\w* kondic\w*|nehavarovan\w*|nebouran\w*|neburan\w*|garazovan\w*|ihned k jizde|ihned pojizdn\w*|technicky v (poradku|poriadku)|jezdi bez problemu|jazdi bez problemov|pravideln\w* servis\w*)\b/;
 
 const NEGATORS = /\b(ne|bez|neni|nebylo|nebyl[ao]?|nikdy|zadne|zadny|ziadne|ziadny|nie|nie je|ani|nema|nemelo)\s+(\w+\s+){0,2}$/;
 
@@ -479,7 +481,8 @@ function analyseCondition(title: string, body: string) {
           const prefixNegated = Boolean(mm[1]);
           const before = clause.slice(Math.max(0, mm.index - 30), mm.index);
           const wordNegated = NEGATORS.test(before);
-          const negated = prefixNegated !== wordNegated; // double negation cancels out
+          // Czech/Slovak use negative concord: "nikdy nebourané" is still one negation, not two
+          const negated = prefixNegated || wordNegated;
           const polarity = negated ? -concept.polarity : concept.polarity;
           if (polarity > 0) {
             signals.push({ condition: "positive", snippet: mm[0], strength: 1 });
@@ -586,6 +589,10 @@ export function parseListing(input: ParseInput): ParseResult {
   const engine = extractEngine(all);
   if (engine.snippet) evidence.engineCcm = engine.snippet;
   const fuel = extractFuel(title, body);
+  if (fuel.fuel === "unknown" && mm.make && (mm.make.slug === "tesla" || ELECTRIC_ONLY.has(`${mm.make.slug}/${mm.model?.slug}`))) {
+    fuel.fuel = "electric";
+    fuel.snippet = "electric-only model";
+  }
   if (fuel.snippet) evidence.fuel = fuel.snippet;
   const tr = extractTransmission(all, fuel.fuel);
   if (tr.snippet) evidence.transmission = tr.snippet;

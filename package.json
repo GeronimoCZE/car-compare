@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "seed": "tsx --env-file=.env scripts/seed.ts",
+    "worker": "tsx --env-file=.env scripts/worker.ts",
+    "ingest": "tsx --env-file=.env scripts/ingest.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

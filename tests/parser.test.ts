@@ -156,3 +156,19 @@ describe("confidence", () => {
     expect(p("Prodám auto", "Volejte").confidence).toBeLessThan(0.3);
   });
 });
+
+describe("regressions from demo data", () => {
+  it("negative concord: 'nikdy nebourané' is positive", () => {
+    expect(p("Golf", "Nikdy nebourané, garážované.").condition).toBe("ok");
+  });
+  it("inflected positive phrases", () => {
+    expect(p("Golf", "Vůz je v top stavu, pravidelný servis.").condition).toBe("ok");
+    expect(p("Golf", "Vozidlo je v top stave.").condition).toBe("ok");
+  });
+  it("hail damage stays damaged even when technically fine", () => {
+    expect(p("Golf", "Poškozené kroupami, technicky v pořádku.").condition).toBe("damaged");
+  });
+  it("Tesla defaults to electric", () => {
+    expect(p("Tesla Model 3 Long Range AWD").fuel).toBe("electric");
+  });
+});
