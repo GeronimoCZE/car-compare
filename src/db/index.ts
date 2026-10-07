@@ -1,0 +1,16 @@
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import * as schema from "./schema";
+
+const globalForDb = globalThis as unknown as { pg?: ReturnType<typeof postgres> };
+
+const client =
+  globalForDb.pg ??
+  postgres(process.env.DATABASE_URL ?? "postgres://app:app@localhost:5432/autos", {
+    max: Number(process.env.DB_POOL_SIZE ?? 10),
+  });
+if (process.env.NODE_ENV !== "production") globalForDb.pg = client;
+
+export const db = drizzle(client, { schema });
+export const sqlClient = client;
+export * from "./schema";
