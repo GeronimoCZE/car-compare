@@ -160,13 +160,13 @@ export default async function SearchPage(props: Props) {
           <div className="mt-4 grid gap-6 lg:grid-cols-[3fr_2fr]">
             <YearPriceChart data={stats} format={fmtMoney} label={t.model.byYear} />
             <div className="max-h-72 overflow-auto">
-              <table className="w-full text-sm">
+              <table className="w-full whitespace-nowrap text-sm">
                 <thead className="sticky top-0 bg-white text-left text-xs uppercase text-muted">
                   <tr>
                     <th className="py-1.5">{t.model.yearCol}</th>
-                    <th className="text-right">{t.model.minCol}</th>
-                    <th className="text-right">{t.model.medianCol}</th>
-                    <th className="text-right">{t.model.maxCol}</th>
+                    <th className="hidden text-right sm:table-cell">{t.model.minCol}</th>
+                    <th className="pl-3 text-right">{t.model.medianCol}</th>
+                    <th className="hidden pl-3 text-right sm:table-cell">{t.model.maxCol}</th>
                     <th className="pl-3 text-right">{t.model.kmCol}</th>
                     <th className="pl-3 text-right">n</th>
                   </tr>
@@ -177,9 +177,9 @@ export default async function SearchPage(props: Props) {
                       <td className="py-1.5 font-semibold">
                         <Link className="hover:underline" href={`${basePath}?yearFrom=${s.year}&yearTo=${s.year}&sort=price_asc`}>{s.year}</Link>
                       </td>
-                      <td className="text-right tabular-nums">{fmtMoney(s.p10)}</td>
-                      <td className="text-right font-semibold tabular-nums">{fmtMoney(s.median)}</td>
-                      <td className="text-right tabular-nums">{fmtMoney(s.p90)}</td>
+                      <td className="hidden text-right tabular-nums sm:table-cell">{fmtMoney(s.p10)}</td>
+                      <td className="pl-3 text-right font-semibold tabular-nums">{fmtMoney(s.median)}</td>
+                      <td className="hidden pl-3 text-right tabular-nums sm:table-cell">{fmtMoney(s.p90)}</td>
                       <td className="pl-3 text-right tabular-nums text-muted">{s.km ? `${num(Math.round(s.km / 1000), locale)} tkm` : "–"}</td>
                       <td className="pl-3 text-right tabular-nums text-muted">{s.n}</td>
                     </tr>

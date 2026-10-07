@@ -1,4 +1,4 @@
-# Development notes
+# Setup and development
 
 A Heureka-style aggregator for used cars. It collects listings from CZ/SK marketplaces and dealer feeds, reads the free-text ads to extract make, model, year, mileage, engine, fuel, gearbox and **condition** (drivable / damaged / non-running / for parts / spare parts), compares every car with similar ones, and sends buyers to the source listing.
 
