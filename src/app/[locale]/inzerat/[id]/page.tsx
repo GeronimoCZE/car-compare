@@ -238,7 +238,7 @@ export default async function ListingPage(props: Props) {
           {histPoints.length >= 2 && (
             <div className="card p-5">
               <h2 className="mb-2 font-bold">{t.listing.priceHistory}</h2>
-              <PriceHistoryChart points={histPoints} format={fm} label={t.listing.priceHistory} />
+              <PriceHistoryChart points={histPoints} end={l.lastCheckedAt > l.lastSeenAt ? l.lastCheckedAt : l.lastSeenAt} format={fm} label={t.listing.priceHistory} />
             </div>
           )}
 

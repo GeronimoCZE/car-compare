@@ -30,8 +30,7 @@ export function CompareTable({ locale, t, eurRate }: { locale: Locale; t: Dict; 
   const [items, setItems] = useState<Item[] | null>(null);
   const load = () => {
     const ids = readCompare();
-    if (!ids.length) return setItems([]);
-    fetch(`/api/listings?ids=${ids.join(",")}`)
+    (ids.length ? fetch(`/api/listings?ids=${ids.join(",")}`) : Promise.resolve(new Response("[]")))
       .then((r) => r.json())
       .then((rows: Item[]) => setItems(ids.map((id) => rows.find((r) => r.id === id)).filter(Boolean) as Item[]))
       .catch(() => setItems([]));

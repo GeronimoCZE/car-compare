@@ -21,7 +21,7 @@ export function YearPriceChart({
   label: string;
 }) {
   if (data.length < 2) return null;
-  const W = 720, H = 260, L = 64, R = 16, T = 16, B = 32;
+  const W = 720, H = 260, L = 92, R = 16, T = 16, B = 32;
   const years = data.map((d) => d.year);
   const minY = Math.min(...years), maxY = Math.max(...years);
   const maxV = Math.max(...data.map((d) => d.p90), highlight?.price ?? 0) * 1.08;
@@ -56,11 +56,11 @@ export function YearPriceChart({
   );
 }
 
-export function PriceHistoryChart({ points, format, label }: { points: { at: Date; price: number }[]; format: (v: number) => string; label: string }) {
+export function PriceHistoryChart({ points, end, format, label }: { points: { at: Date; price: number }[]; end: Date; format: (v: number) => string; label: string }) {
   if (points.length < 2) return null;
-  const W = 520, H = 140, L = 56, R = 12, T = 12, B = 24;
+  const W = 520, H = 140, L = 84, R = 12, T = 12, B = 24;
   const t0 = points[0].at.getTime();
-  const t1 = Math.max(Date.now(), points[points.length - 1].at.getTime());
+  const t1 = Math.max(end.getTime(), points[points.length - 1].at.getTime());
   const vals = points.map((p) => p.price);
   const lo = Math.min(...vals) * 0.95, hi = Math.max(...vals) * 1.05;
   const x = (t: number) => L + ((t - t0) / Math.max(1, t1 - t0)) * (W - L - R);

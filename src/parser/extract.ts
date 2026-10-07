@@ -137,7 +137,7 @@ function detectMakeModel(title: string, body: string) {
       const aliases = md.aliases?.length ? md.aliases : [md.slug];
       for (const alias of aliases) {
         for (const hit of [...findAlias(title, alias, true), ...findAlias(body, alias, false)]) {
-          let score = (hit.inTitle ? 10 : 4) + alias.length / 5;
+          const score = (hit.inTitle ? 10 : 4) + alias.length / 5;
           // Numeric aliases ("80", "120", "206") only count right after the make name
           if (/^\d+$/.test(alias)) {
             const src = hit.inTitle ? title : body;

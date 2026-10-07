@@ -35,20 +35,20 @@ export function FilterForm({
   const currency = locale === "sk" ? "€" : "Kč";
   const conditions = arr(values.condition).length ? arr(values.condition) : DEFAULT_CONDITIONS;
 
-  useEffect(() => {
-    if (!make) {
-      setModels([]);
-      return;
-    }
-    let alive = true;
-    fetch(`/api/models?make=${encodeURIComponent(make)}`)
+  const loadModels = (value: string) =>
+    fetch(`/api/models?make=${encodeURIComponent(value)}`)
       .then((r) => r.json())
-      .then((m: Option[]) => alive && setModels(m))
+      .then((m: Option[]) => setModels(m))
       .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [make]);
+  const initialMake = String(values.make ?? "");
+  useEffect(() => {
+    if (initialMake) void loadModels(initialMake);
+  }, [initialMake]);
+  const onMake = (value: string) => {
+    setMake(value);
+    setModels([]);
+    if (value) void loadModels(value);
+  };
 
   const thisYear = new Date().getFullYear();
   const years = Array.from({ length: 40 }, (_, i) => thisYear - i);
@@ -63,7 +63,7 @@ export function FilterForm({
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="label" htmlFor="make">{s.make}</label>
-          <select id="make" name="make" value={make} onChange={(e) => setMake(e.target.value)} className="input">
+          <select id="make" name="make" value={make} onChange={(e) => onMake(e.target.value)} className="input">
             <option value="">{t.home.anyMake}</option>
             {makes.map((m) => (
               <option key={m.slug} value={m.slug}>{m.name} ({m.count})</option>
@@ -116,10 +116,12 @@ export function FilterForm({
             <legend className="label">{s.condition}</legend>
             <div className="space-y-1.5">
               {CONDITIONS.map((c) => (
-                <label key={c} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="condition" value={c} defaultChecked={conditions.includes(c)} />
-                  <span>{t.condition[c]}</span>
-                  <span className="text-xs text-muted">· {t.conditionHint[c]}</span>
+                <label key={c} className="flex items-start gap-2 text-sm" title={t.conditionHint[c]}>
+                  <input type="checkbox" name="condition" value={c} defaultChecked={conditions.includes(c)} className="mt-1" />
+                  <span>
+                    {t.condition[c]}
+                    <span className="block text-xs text-muted">{t.conditionHint[c]}</span>
+                  </span>
                 </label>
               ))}
             </div>

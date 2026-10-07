@@ -130,6 +130,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
           </section>
           <section className="card p-5 md:col-span-2">
             <h2 className="mb-2 font-bold">{t.account.privacy}</h2>
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not a page */}
             <a href="/api/account/export" className="btn-ghost">{t.account.exportData}</a>
             <div className="mt-6 rounded-xl border border-red-200 bg-red-50/50 p-4">
               <h3 className="font-semibold text-red-800">{t.account.deleteAccount}</h3>

@@ -1,17 +1,22 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import type { Dict, Locale } from "@/i18n/dictionaries";
 
+const listeners = new Set<() => void>();
+const subscribe = (cb: () => void) => {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+};
+const hasConsent = () => document.cookie.split("; ").some((c) => c.startsWith("consent="));
+
 export function CookieBanner({ locale, t }: { locale: Locale; t: Dict["cookies"] }) {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    setShow(!document.cookie.split("; ").some((c) => c.startsWith("consent=")));
-  }, []);
-  if (!show) return null;
+  // Server render assumes consent so the banner never flashes in static HTML
+  const consented = useSyncExternalStore(subscribe, hasConsent, () => true);
+  if (consented) return null;
   const choose = (v: "all" | "necessary") => {
     document.cookie = `consent=${v}; path=/; max-age=${60 * 60 * 24 * 180}; samesite=lax`;
-    setShow(false);
+    listeners.forEach((l) => l());
   };
   return (
     <div role="dialog" aria-live="polite" className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-3xl rounded-2xl border border-line bg-white p-4 shadow-xl sm:flex sm:items-center sm:gap-4">

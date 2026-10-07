@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { eq } from "drizzle-orm";
 import { db, sources } from "@/db";
 import { YearPriceChart } from "@/components/charts";
+import { FilterDetails } from "@/components/FilterDetails";
 import { FilterForm } from "@/components/FilterForm";
 import { ListingCard } from "@/components/ListingCard";
 import { Pagination } from "@/components/Pagination";
@@ -166,8 +167,8 @@ export default async function SearchPage(props: Props) {
                     <th className="text-right">{t.model.minCol}</th>
                     <th className="text-right">{t.model.medianCol}</th>
                     <th className="text-right">{t.model.maxCol}</th>
-                    <th className="text-right">{t.model.kmCol}</th>
-                    <th className="text-right">n</th>
+                    <th className="pl-3 text-right">{t.model.kmCol}</th>
+                    <th className="pl-3 text-right">n</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -179,8 +180,8 @@ export default async function SearchPage(props: Props) {
                       <td className="text-right tabular-nums">{fmtMoney(s.p10)}</td>
                       <td className="text-right font-semibold tabular-nums">{fmtMoney(s.median)}</td>
                       <td className="text-right tabular-nums">{fmtMoney(s.p90)}</td>
-                      <td className="text-right tabular-nums text-muted">{s.km ? `${num(Math.round(s.km / 1000), locale)} tkm` : "–"}</td>
-                      <td className="text-right tabular-nums text-muted">{s.n}</td>
+                      <td className="pl-3 text-right tabular-nums text-muted">{s.km ? `${num(Math.round(s.km / 1000), locale)} tkm` : "–"}</td>
+                      <td className="pl-3 text-right tabular-nums text-muted">{s.n}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -192,10 +193,9 @@ export default async function SearchPage(props: Props) {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[300px_1fr]">
         <aside className="card h-fit p-5 lg:sticky lg:top-20">
-          <details open className="group">
-            <summary className="mb-4 cursor-pointer list-none font-bold lg:pointer-events-none">{t.search.filters}</summary>
+          <FilterDetails summary={t.search.filters}>
             <FilterForm locale={locale} t={t} values={params} makes={makeOptions} sourcesList={srcs} action={`/${locale}/auta`} />
-          </details>
+          </FilterDetails>
         </aside>
         <section>
           {result.rows.length === 0 ? (
