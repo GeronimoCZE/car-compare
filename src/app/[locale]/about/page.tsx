@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { about } from "@/content/legal";
+import { about, CREATOR } from "@/content/legal";
 import { isLocale, type Locale } from "@/i18n/dictionaries";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/about">): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
-  return { title: about(locale as Locale).title, alternates: { canonical: `/${locale}/about` } };
+  return { title: about(locale as Locale).title, authors: [CREATOR], alternates: { canonical: `/${locale}/about` } };
 }
 
 export default async function Page({ params }: PageProps<"/[locale]/about">) {

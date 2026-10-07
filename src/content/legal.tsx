@@ -176,6 +176,8 @@ export function cookiesDoc(locale: Locale): Doc {
   };
 }
 
+export const CREATOR = { name: "Nikolas Malík", url: "https://malikweb.eu" };
+
 export function about(locale: Locale): Doc {
   const feed = `<CARS>
   <CAR>
@@ -208,6 +210,16 @@ export function about(locale: Locale): Doc {
           {sk
             ? `${SITE_NAME} pomáha nájsť jazdené auto za férovú cenu. Inzeráty z viacerých webov zobrazujeme na jednom mieste, z textu rozpoznávame dôležité parametre a každé auto porovnávame s podobnými vozidlami.`
             : `${SITE_NAME} pomáhá najít ojeté auto za férovou cenu. Inzeráty z více webů zobrazujeme na jednom místě, z textu rozpoznáváme důležité parametry a každé auto srovnáváme s podobnými vozy.`}
+        </p>
+        <h2>{sk ? "Autor" : "Autor"}</h2>
+        <p>
+          {sk ? "Web vytvoril " : "Web vytvořil "}
+          <strong>{CREATOR.name}</strong>
+          {sk ? ". Viac o jeho práci nájdete na " : ". Více o jeho práci najdete na "}
+          <a href={CREATOR.url} rel="author noopener" target="_blank">
+            {CREATOR.url.replace(/^https:\/\//, "")}
+          </a>
+          .
         </p>
         <h2>{sk ? "Ako počítame trhovú cenu" : "Jak počítáme tržní cenu"}</h2>
         <p>

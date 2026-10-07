@@ -62,4 +62,7 @@ body {
   .prose-legal ul {
     @apply ml-5 list-disc;
   }
+  .prose-legal a {
+    @apply font-semibold text-brand-600 underline-offset-2 hover:underline;
+  }
 }
